@@ -2,8 +2,10 @@ package com.javarush.task.task32.task3209;
 
 import com.javarush.task.task32.task3209.listeners.FrameListener;
 import com.javarush.task.task32.task3209.listeners.TabbedPaneChangeListener;
+import com.javarush.task.task32.task3209.listeners.UndoListener;
 
 import javax.swing.*;
+import javax.swing.undo.UndoManager;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -13,6 +15,12 @@ public class View extends JFrame implements ActionListener {
     private JTabbedPane tabbedPane = new JTabbedPane();
     private JTextPane htmlTextPane = new JTextPane();
     private JEditorPane plainTextPane = new JEditorPane();
+    private UndoManager undoManager = new UndoManager();
+    private UndoListener undoListener = new UndoListener(undoManager);
+
+    public UndoListener getUndoListener() {
+        return undoListener;
+    }
 
     public Controller getController() {
         return controller;
@@ -22,22 +30,51 @@ public class View extends JFrame implements ActionListener {
         this.controller = controller;
     }
 
+    public View(){
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            ExceptionHandler.log(e);
+        }
+    }
+
     public void init(){
         initGui();
         addWindowListener(new FrameListener(this));
         setVisible(true);
     }
     public void exit(){controller.exit();}
-    public void selectedTabChanged(){}
+    public void selectedTabChanged(){
+       switch (tabbedPane.getSelectedIndex()){
+           case 0:
+               controller.setPlainText(plainTextPane.getText());
+               break;
+           case 1: plainTextPane.setText(controller.getPlainText());
+           break;
+       }
+        this.resetUndo();
+    }
 
     @Override
-    public void actionPerformed(ActionEvent e) {}
-
-    public View(){
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception e) {
-            ExceptionHandler.log(e);
+    public void actionPerformed(ActionEvent actionEvent) {
+        switch (actionEvent.getActionCommand()){
+            case "Новый":
+                controller.createNewDocument();
+                break;
+            case "Открыть":
+                controller.openDocument();
+                break;
+            case "Сохранить":
+                controller.saveDocument();
+                break;
+            case "Сохранить как...":
+                controller.saveDocumentAs();
+                break;
+            case "Выход":
+                controller.exit();
+                break;
+            case "О программе":
+                this.showAbout();
         }
     }
 
@@ -50,10 +87,10 @@ public class View extends JFrame implements ActionListener {
         MenuHelper.initColorMenu(this, menuBar);
         MenuHelper.initFontMenu(this, menuBar);
         MenuHelper.initHelpMenu(this, menuBar);
+
         getContentPane().add(menuBar, BorderLayout.NORTH);
+
     }
-
-
     public void initEditor(){
         htmlTextPane.setContentType("text/html");
         JScrollPane htmlScrollPane = new JScrollPane(htmlTextPane);
@@ -73,4 +110,43 @@ public class View extends JFrame implements ActionListener {
         initEditor();
         pack();
     }
+    public boolean canUndo(){return undoManager.canUndo();}
+    public boolean canRedo(){return undoManager.canRedo();}
+
+    public void resetUndo(){
+        undoManager.discardAllEdits();
+    }
+
+    public void undo(){
+        try {
+            undoManager.undo();
+        } catch (Exception e){
+            ExceptionHandler.log(e);
+        }
+    }
+
+    public void redo(){
+        try {
+            undoManager.redo();
+        } catch (Exception e){
+            ExceptionHandler.log(e);
+        }
+    }
+
+    public boolean isHtmlTabSelected(){
+        return tabbedPane.getSelectedIndex() == 0;
+    }
+    public void selectHtmlTab(){
+        tabbedPane.setSelectedIndex(0);
+        resetUndo();
+    }
+
+    public void update(){
+        htmlTextPane.setDocument(controller.getDocument());
+    }
+
+    public void showAbout() {
+        JOptionPane.showMessageDialog(tabbedPane, "Мой первый кривой HTML редактор, простите меня, за ту боль, что он вам причинит во время пользования. Спасибо.", "Инфо" , JOptionPane.INFORMATION_MESSAGE);
+    }
+
 }
